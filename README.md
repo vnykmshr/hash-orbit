@@ -5,29 +5,18 @@
 [![npm version](https://badge.fury.io/js/hash-orbit.svg)](https://www.npmjs.com/package/hash-orbit)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Consistent hashing ring for distributed systems with virtual nodes support.
+Consistent hashing implementation for distributed systems. Routes keys to nodes with minimal redistribution when the cluster changes.
 
-## Features
+## Why
 
-- 🎯 **Consistent Hashing** - Minimal key redistribution (~1/n) when nodes change
-- 🔄 **Virtual Nodes** - Configurable replicas for better key distribution
-- ⚡ **O(log n) Lookup** - Binary search for fast key-to-node mapping
-- 🔁 **Replication Support** - Get N nodes for data replication
-- 📦 **Single Dependency** - Only requires murmur-hash for hashing
-- 🎨 **TypeScript** - Full type safety with strict mode
-- ✅ **100% Test Coverage** - Comprehensive test suite
-- 🚀 **Lightweight** - Minimal memory footprint
+Traditional modulo hashing (`hash(key) % N`) reassigns most keys when nodes are added or removed. Consistent hashing with virtual nodes minimizes this to ~1/N keys, making it ideal for:
 
-## Why hash-orbit?
+- Cache sharding (Redis, Memcached)
+- Database partitioning
+- Load balancing with sticky sessions
+- Distributed storage replication
 
-hash-orbit is designed for production use with a focus on simplicity and correctness. Unlike alternatives that bundle additional features like connection pooling or service discovery, hash-orbit does one thing well: consistent hashing. This makes it ideal for:
-
-- **Composability** - Integrate with any caching, database, or networking library
-- **Predictability** - Pure algorithm implementation with no hidden side effects
-- **Maintainability** - Single dependency, minimal surface area for bugs
-- **Flexibility** - Use it for caching, sharding, load balancing, or any distributed system pattern
-
-If you need just the consistent hashing algorithm without opinionated abstractions, hash-orbit is the right choice.
+Pure algorithm implementation with no opinions about your infrastructure. Compose it with whatever caching, database, or networking library you use.
 
 ## Installation
 
@@ -35,253 +24,86 @@ If you need just the consistent hashing algorithm without opinionated abstractio
 npm install hash-orbit
 ```
 
-## Usage
-
-### Basic Example
+## Quick Start
 
 ```typescript
 import { HashOrbit } from 'hash-orbit';
 
-// Create a consistent hash ring with 150 virtual nodes per physical node
 const ring = new HashOrbit({ replicas: 150 });
 
 // Add nodes
-ring.add('server-1');
-ring.add('server-2');
-ring.add('server-3');
+ring.add('cache-1');
+ring.add('cache-2');
+ring.add('cache-3');
 
-// Get the node responsible for a key
-const node = ring.get('user:123'); // Returns: 'server-2' (deterministic)
+// Route a key to a node (deterministic)
+const node = ring.get('user:123'); // => 'cache-2'
 
 // Get multiple nodes for replication
-const nodes = ring.getN('user:123', 2); // Returns: ['server-2', 'server-3']
+const nodes = ring.getN('user:123', 2); // => ['cache-2', 'cache-1']
 
-// Remove a node (minimal redistribution)
-ring.remove('server-2');
-
-// Keys previously on server-2 now route to other servers
-ring.get('user:123'); // Returns: 'server-1' or 'server-3'
-
-// Introspection
-console.log(ring.size); // 2
-console.log(ring.nodes); // ['server-1', 'server-3']
-```
-
-### Advanced Configuration
-
-```typescript
-// Fewer replicas = faster add/remove but less even distribution
-const fastRing = new HashOrbit({ replicas: 50 });
-
-// More replicas = better distribution but more memory
-const balancedRing = new HashOrbit({ replicas: 500 });
-
-// Default replicas (150) provides good balance
-const ring = new HashOrbit();
+// Remove a node (only ~1/3 of keys will move)
+ring.remove('cache-2');
+ring.get('user:123'); // => 'cache-1' (new assignment)
 ```
 
 ## API
 
 ### Constructor
 
-#### `new HashOrbit(options?)`
+```typescript
+new HashOrbit(options?: { replicas?: number })
+```
 
-Creates a new consistent hash ring.
-
-**Parameters:**
-
-- `options.replicas` (number, optional): Number of virtual nodes per physical node. Default: `150`
+Creates a hash ring. `replicas` controls the number of virtual nodes per physical node (default: 150). Higher values improve distribution but use more memory.
 
 ### Methods
 
-#### `add(node: string): void`
+**`add(node: string): void`**
+Add a node to the ring.
 
-Adds a node to the ring. Creates virtual nodes for better key distribution.
+**`remove(node: string): void`**
+Remove a node from the ring.
 
-**Parameters:**
+**`get(key: string): string | undefined`**
+Get the node responsible for a key. Returns `undefined` if ring is empty.
 
-- `node`: Unique identifier for the node
+**`getN(key: string, count: number): string[]`**
+Get N unique nodes for a key (useful for replication).
 
-**Example:**
+**`toJSON(): { nodes: string[], replicas: number }`**
+Serialize ring state for persistence or transfer between processes.
 
-```typescript
-ring.add('cache-server-1');
-```
-
-#### `remove(node: string): void`
-
-Removes a node from the ring. All keys on this node will be redistributed to other nodes.
-
-**Parameters:**
-
-- `node`: Identifier of the node to remove
-
-**Example:**
-
-```typescript
-ring.remove('cache-server-1');
-```
-
-#### `get(key: string): string | undefined`
-
-Gets the node responsible for a given key using consistent hashing.
-
-**Parameters:**
-
-- `key`: The key to look up
-
-**Returns:** Node identifier, or `undefined` if ring is empty
-
-**Example:**
-
-```typescript
-const node = ring.get('session:abc123');
-```
-
-#### `getN(key: string, count: number): string[]`
-
-Gets N unique nodes for a key, useful for data replication.
-
-**Parameters:**
-
-- `key`: The key to look up
-- `count`: Number of nodes to return
-
-**Returns:** Array of node identifiers (up to `count` unique nodes)
-
-**Example:**
-
-```typescript
-const replicas = ring.getN('user:789', 3);
-// Returns up to 3 unique nodes for replication
-```
+**`static fromJSON(json): HashOrbit`**
+Restore a ring from serialized state.
 
 ### Properties
 
-#### `size: number`
+**`size: number`** - Number of nodes in the ring
+**`nodes: string[]`** - List of all nodes
 
-Gets the number of physical nodes in the ring.
+## Usage Examples
 
-**Example:**
-
-```typescript
-console.log(ring.size); // 3
-```
-
-#### `nodes: string[]`
-
-Gets all physical nodes in the ring.
-
-**Example:**
+### Cache Sharding
 
 ```typescript
-console.log(ring.nodes); // ['server-1', 'server-2', 'server-3']
-```
-
-### Serialization
-
-#### `toJSON(): { nodes: string[], replicas: number }`
-
-Serializes the hash ring to a JSON-compatible object for state persistence or transfer.
-
-**Returns:** Object containing all nodes and replica configuration
-
-**Example:**
-
-```typescript
-const ring = new HashOrbit({ replicas: 100 });
-ring.add('server-1');
-ring.add('server-2');
-
-const json = ring.toJSON();
-// { nodes: ['server-1', 'server-2'], replicas: 100 }
-
-// Save to file, send over network, etc.
-```
-
-#### `static fromJSON(json: { nodes: string[], replicas: number }): HashOrbit`
-
-Creates a new HashOrbit instance from a serialized object.
-
-**Parameters:**
-
-- `json`: Serialized ring data from `toJSON()`
-
-**Returns:** New HashOrbit instance with the same configuration
-
-**Example:**
-
-```typescript
-// Restore from serialized state
-const restored = HashOrbit.fromJSON(json);
-
-// Consistent hashing behavior is preserved
-restored.get('user:123'); // Routes to same node as original
-```
-
-### Debugging
-
-#### `toString(): string`
-
-Returns a string representation of the ring for debugging.
-
-**Example:**
-
-```typescript
-console.log(ring.toString());
-// Output: "HashOrbit(nodes=3, positions=450, replicas=150)"
-```
-
-## Use Cases
-
-### 1. Cache Sharding
-
-Distribute cache keys across multiple Redis/Memcached instances:
-
-```typescript
-const ring = new HashOrbit({ replicas: 150 });
+const ring = new HashOrbit();
 ring.add('redis-1:6379');
 ring.add('redis-2:6379');
 ring.add('redis-3:6379');
 
-const cacheKey = 'user:profile:123';
-const server = ring.get(cacheKey);
-// Connect to the appropriate Redis instance
+async function get(key: string) {
+  const server = ring.get(key);
+  return redisClients[server].get(key);
+}
+
+async function set(key: string, value: string) {
+  const server = ring.get(key);
+  return redisClients[server].set(key, value);
+}
 ```
 
-### 2. Database Partitioning
-
-Route queries to the correct database shard:
-
-```typescript
-const ring = new HashOrbit();
-ring.add('db-shard-1');
-ring.add('db-shard-2');
-ring.add('db-shard-3');
-
-const userId = 'user-456';
-const shard = ring.get(userId);
-// Query the appropriate database shard
-```
-
-### 3. Load Balancing with Sticky Sessions
-
-Route user sessions to specific servers without central state:
-
-```typescript
-const ring = new HashOrbit();
-ring.add('app-server-1');
-ring.add('app-server-2');
-ring.add('app-server-3');
-
-const sessionId = 'session-abc';
-const server = ring.get(sessionId);
-// Always routes to the same server for the session
-```
-
-### 4. Data Replication
-
-Identify multiple nodes for redundancy:
+### Data Replication
 
 ```typescript
 const ring = new HashOrbit({ replicas: 200 });
@@ -289,99 +111,72 @@ ring.add('storage-1');
 ring.add('storage-2');
 ring.add('storage-3');
 
-const fileId = 'document-789';
-const replicas = ring.getN(fileId, 2);
-// Store the file on 2 different nodes for redundancy
+async function writeWithReplication(key: string, data: Buffer) {
+  const targets = ring.getN(key, 2); // Write to 2 nodes
+  await Promise.all(targets.map((node) => storage[node].write(key, data)));
+}
+```
+
+### State Persistence
+
+```typescript
+// Save ring state
+const state = ring.toJSON();
+await fs.writeFile('ring.json', JSON.stringify(state));
+
+// Restore later
+const restored = HashOrbit.fromJSON(JSON.parse(await fs.readFile('ring.json')));
+restored.get('user:123'); // Routes to same node as original
 ```
 
 ## How It Works
 
-### Consistent Hashing
+**Virtual Nodes**: Each physical node gets `replicas` positions on the ring (default 150). This ensures even distribution and minimal disruption when nodes change.
 
-Traditional modulo hashing (`server_id = hash(key) % num_servers`) causes massive redistribution when servers change. Consistent hashing minimizes this to ~1/n keys.
+**Binary Search**: Keys are hashed to a position, then binary search finds the next node clockwise on the ring in O(log n) time.
 
-### Virtual Nodes
-
-Each physical node creates multiple virtual nodes (replicas) on the ring. This ensures:
-
-- Better key distribution
-- Reduced impact when nodes change
-- More balanced load across servers
-
-With 150 virtual nodes per physical node:
-
-- Adding a node: ~1/n keys redistribute
-- Removing a node: ~1/n keys redistribute
-- Better distribution than a single position per node
-
-### Binary Search
-
-Keys are looked up in O(log n) time using binary search on sorted virtual node positions.
+**Minimal Redistribution**: When adding/removing nodes, only ~1/N keys need to move (where N is the number of nodes).
 
 ## Performance
 
-- **Add/Remove**: O(replicas \* log(total_positions))
-- **Get**: O(log(total_positions))
-- **GetN**: O(total_positions) worst case, typically much faster
+| Operation  | Complexity      | Example (3 nodes, 150 replicas) |
+| ---------- | --------------- | ------------------------------- |
+| add/remove | O(r × log(r×n)) | ~450 positions, ~9ms            |
+| get        | O(log(r×n))     | ~9 comparisons, <1μs            |
+| getN       | O(r×n) worst    | Usually much faster             |
 
-With 3 nodes and 150 replicas each:
+Memory: ~64 bytes per virtual node position (30KB for 450 positions).
 
-- 450 positions total
-- Lookup: ~9 comparisons (log₂ 450)
-- Memory: ~30KB (450 positions × 64 bytes each)
+## TypeScript
 
-## Testing
+Fully typed with strict mode. Ships with `.d.ts` files.
 
-```bash
-# Run tests
-npm test
+```typescript
+import { HashOrbit, hash32 } from 'hash-orbit';
 
-# Run tests with coverage
-npm run coverage
-
-# Run linter
-npm run lint
-
-# Format code
-npm run format
+const ring: HashOrbit = new HashOrbit({ replicas: 100 });
+const node: string | undefined = ring.get('key');
+const nodes: string[] = ring.getN('key', 3);
 ```
 
 ## Development
 
 ```bash
-# Install dependencies
-npm install
-
-# Build
-npm run build
-
-# Clean build artifacts
-npm run clean
+npm install      # Install dependencies
+npm test         # Run tests (fast: ~300ms)
+npm run coverage # Generate coverage report
+npm run build    # Build for production
 ```
 
-## Production Readiness
+100% test coverage. All tests run in <500ms.
 
-hash-orbit is production-ready and suitable for v1.0.0 release:
+## Examples
 
-- **✅ 100% Test Coverage** - Comprehensive test suite covering all functionality, edge cases, and distribution properties
-- **✅ Input Validation** - Validates node identifiers and keys to prevent common errors
-- **✅ Scale Tested** - Verified with 1000+ nodes in automated tests
-- **✅ Type Safety** - Full TypeScript support with strict mode enabled
-- **✅ Serialization** - Built-in JSON serialization for state persistence and transfer
-- **✅ Zero Breaking Changes** - Stable API with semantic versioning
-- **✅ Actively Maintained** - Regular updates and responsive issue resolution
+See [`examples/`](./examples) for complete working examples:
 
-The library has been designed with production workloads in mind, focusing on correctness, performance, and ease of use.
-
-## Contributing
-
-Contributions are welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch
-3. Add tests for new functionality
-4. Ensure all tests pass (`npm test`)
-5. Submit a pull request
+- Cache replication with failover
+- Database sharding
+- Session-based load balancing
 
 ## License
 
@@ -389,6 +184,5 @@ MIT © [vnykmshr](https://github.com/vnykmshr)
 
 ## References
 
-- [Consistent Hashing](https://en.wikipedia.org/wiki/Consistent_hashing)
+- [Consistent Hashing and Random Trees (Karger et al.)](https://www.akamai.com/us/en/multimedia/documents/technical-publication/consistent-hashing-and-random-trees-distributed-caching-protocols-for-relieving-hot-spots-on-the-world-wide-web-technical-publication.pdf)
 - [Amazon Dynamo Paper](https://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf)
-- [MurmurHash](https://github.com/vnykmshr/murmur-hash)
