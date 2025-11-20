@@ -1,5 +1,6 @@
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
+import prettierConfig from 'eslint-config-prettier';
 
 export default tseslint.config(
   // Ignore patterns
@@ -12,6 +13,9 @@ export default tseslint.config(
 
   // TypeScript-ESLint recommended rules
   ...tseslint.configs.recommended,
+
+  // Prettier config to disable conflicting rules
+  prettierConfig,
 
   // Custom configuration for all TypeScript files
   {
