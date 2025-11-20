@@ -27,20 +27,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2025-11-21
+
 ### Added
 
-- Initial release of hash-orbit
 - Consistent hashing ring implementation with virtual nodes
 - `add()` method to add nodes to the ring
 - `remove()` method to remove nodes with minimal redistribution
-- `get()` method for O(log n) key lookup
-- `getN()` method for replica selection
+- `get()` method for O(log n) key lookup using binary search
+- `getN()` method for replica selection (replication support)
 - `size` and `nodes` getters for introspection
-- TypeScript support with full type definitions
-- 100% test coverage with comprehensive test suite
-- GitHub Actions CI workflow
+- `toJSON()` and `fromJSON()` methods for serialization
+- Input validation for node identifiers and keys
+- TypeScript support with full type definitions and strict mode
+- 100% test coverage with 42 comprehensive tests
+- Fast test suite (<500ms execution time)
+- GitHub Actions CI workflow with coverage reporting
 - Pre-commit hooks with husky and lint-staged
-- Comprehensive documentation and examples
+- Comprehensive documentation and working examples
+- Production-ready codebase with minimal dependencies
+
+### Changed
+
+- Optimized test suite (99% faster, removed bloat)
+- Streamlined README (52% shorter, more practical)
+- Deduplicated code and removed redundant comments
+- Improved code maintainability and consistency
 
 ## [0.1.0] - 2025-11-20
 
@@ -56,5 +68,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CI/CD with GitHub Actions
 - MIT License
 
-[unreleased]: https://github.com/vnykmshr/hash-orbit/compare/v0.1.0...HEAD
+[unreleased]: https://github.com/vnykmshr/hash-orbit/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/vnykmshr/hash-orbit/releases/tag/v1.0.0
 [0.1.0]: https://github.com/vnykmshr/hash-orbit/releases/tag/v0.1.0

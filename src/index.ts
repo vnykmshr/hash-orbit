@@ -47,12 +47,21 @@ export class HashOrbit {
    * @private
    */
   private validateIdentifier(value: string, name: string): void {
-    if (!value || value.length === 0) {
+    if (!value) {
       throw new Error(`${name} cannot be empty`);
     }
     if (value.length > 1000) {
       throw new Error(`${name} exceeds maximum length of 1000 characters`);
     }
+  }
+
+  /**
+   * Gets unique physical nodes from the ring
+   * @returns Set of unique node identifiers
+   * @private
+   */
+  private getUniqueNodes(): Set<string> {
+    return new Set(this.ring.values());
   }
 
   /**
@@ -122,7 +131,6 @@ export class HashOrbit {
     const position = hash32(key);
     let idx = this.binarySearch(position);
 
-    // Wrap around if necessary
     if (idx >= this.sortedKeys.length) idx = 0;
 
     return this.ring.get(this.sortedKeys[idx]!);
@@ -144,7 +152,6 @@ export class HashOrbit {
     const position = hash32(key);
     let idx = this.binarySearch(position);
 
-    // Iterate through sortedKeys to find N unique nodes
     for (let i = 0; i < this.sortedKeys.length && result.length < count; i++) {
       if (idx >= this.sortedKeys.length) idx = 0;
 
@@ -164,9 +171,7 @@ export class HashOrbit {
    * @returns The number of physical nodes
    */
   get size(): number {
-    // Count unique nodes in the ring
-    const uniqueNodes = new Set(this.ring.values());
-    return uniqueNodes.size;
+    return this.getUniqueNodes().size;
   }
 
   /**
@@ -174,9 +179,7 @@ export class HashOrbit {
    * @returns Array of node identifiers
    */
   get nodes(): string[] {
-    // Return unique nodes from the ring
-    const uniqueNodes = new Set(this.ring.values());
-    return Array.from(uniqueNodes);
+    return Array.from(this.getUniqueNodes());
   }
 
   /**
