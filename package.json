@@ -31,6 +31,7 @@
     "url": "https://github.com/vnykmshr/hash-orbit/issues"
   },
   "homepage": "https://github.com/vnykmshr/hash-orbit#readme",
-  "dependencies": {},
-  "devDependencies": {}
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
 }
