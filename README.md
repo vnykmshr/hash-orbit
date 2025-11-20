@@ -13,7 +13,7 @@ Consistent hashing ring for distributed systems with virtual nodes support.
 - 🔄 **Virtual Nodes** - Configurable replicas for better key distribution
 - ⚡ **O(log n) Lookup** - Binary search for fast key-to-node mapping
 - 🔁 **Replication Support** - Get N nodes for data replication
-- 📦 **Zero Dependencies** - Only requires murmur-hash for hashing
+- 📦 **Single Dependency** - Only requires murmur-hash for hashing
 - 🎨 **TypeScript** - Full type safety with strict mode
 - ✅ **100% Test Coverage** - Comprehensive test suite
 - 🚀 **Lightweight** - Minimal memory footprint
@@ -325,4 +325,4 @@ MIT © [vnykmshr](https://github.com/vnykmshr)
 
 - [Consistent Hashing](https://en.wikipedia.org/wiki/Consistent_hashing)
 - [Amazon Dynamo Paper](https://www.allthingsdistributed.com/files/amazon-dynamo-sosp2007.pdf)
-- [MurmurHash](https://github.com/perezd/node-murmurhash)
+- [MurmurHash](https://github.com/vnykmshr/murmur-hash)
