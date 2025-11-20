@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Release Checklist
+
+**For maintainers creating a new release:**
+
+- [ ] Update version in `package.json` (follow semver)
+- [ ] Update this CHANGELOG.md with version and date
+- [ ] Ensure all tests pass: `npm test`
+- [ ] Verify coverage meets threshold: `npm run coverage`
+- [ ] Run linting: `npm run lint`
+- [ ] Clean build: `npm run build`
+- [ ] Review dist/ output for correctness
+- [ ] Commit changes: `chore(release): vX.Y.Z`
+- [ ] Create git tag: `git tag vX.Y.Z`
+- [ ] Push commits and tags: `git push && git push --tags`
+- [ ] Publish to npm: `npm publish` (with 2FA)
+- [ ] Create GitHub release with changelog notes
+- [ ] Verify package on npm: `npm info hash-orbit`
+
+---
+
 ## [Unreleased]
 
 ### Added

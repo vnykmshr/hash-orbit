@@ -43,5 +43,14 @@ export default tseslint.config(
     rules: {
       'no-console': 'off', // Allow console in tests
     },
+  },
+
+  // Example file specific rules
+  {
+    files: ['examples/**/*.ts'],
+    rules: {
+      'no-console': 'off', // Allow console in examples (for demonstration output)
+      '@typescript-eslint/no-unused-vars': 'off', // Allow unused vars in examples (demonstration code)
+    },
   }
 );
