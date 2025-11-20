@@ -93,6 +93,35 @@ export class HashOrbit {
   }
 
   /**
+   * Gets N unique nodes responsible for a given key (for replication)
+   * @param key - The key to look up
+   * @param count - Number of unique nodes to return
+   * @returns Array of node identifiers (up to count unique nodes)
+   */
+  getN(key: string, count: number): string[] {
+    if (this.ring.size === 0 || count <= 0) return [];
+
+    const result: string[] = [];
+    const seen = new Set<string>();
+    const position = hash32(key);
+    let idx = this.binarySearch(position);
+
+    // Iterate through sortedKeys to find N unique nodes
+    for (let i = 0; i < this.sortedKeys.length && result.length < count; i++) {
+      if (idx >= this.sortedKeys.length) idx = 0;
+
+      const node = this.ring.get(this.sortedKeys[idx]!);
+      if (node && !seen.has(node)) {
+        seen.add(node);
+        result.push(node);
+      }
+      idx++;
+    }
+
+    return result;
+  }
+
+  /**
    * Gets the number of nodes in the ring
    * @returns The number of physical nodes
    */
