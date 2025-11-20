@@ -1,0 +1,36 @@
+{
+  "name": "hash-orbit",
+  "version": "0.1.0",
+  "description": "Consistent hashing ring for distributed systems",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {},
+  "keywords": [
+    "consistent-hashing",
+    "distributed-systems",
+    "hash-ring",
+    "caching",
+    "load-balancing",
+    "sharding",
+    "partitioning"
+  ],
+  "author": "vnykmshr",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vnykmshr/hash-orbit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/vnykmshr/hash-orbit/issues"
+  },
+  "homepage": "https://github.com/vnykmshr/hash-orbit#readme",
+  "dependencies": {},
+  "devDependencies": {}
+}
