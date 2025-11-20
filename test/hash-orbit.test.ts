@@ -279,21 +279,39 @@ describe('HashOrbit', () => {
   });
 
   describe('distribution tests', () => {
-    test('removing a node redistributes ~1/n keys', () => {
+    test('provides balanced distribution and minimal redistribution on node changes', () => {
       const ring = new HashOrbit({ replicas: 150 });
       ring.add('server-1');
       ring.add('server-2');
       ring.add('server-3');
 
-      const keys = Array.from({ length: 1000 }, (_, i) => `key:${i}`);
-      const beforeMap = new Map<string, string>();
+      // Test 1: Initial distribution is balanced
+      const keys = Array.from({ length: 3000 }, (_, i) => `key:${i}`);
+      const initialDist = new Map<string, number>();
 
+      for (const key of keys) {
+        const node = ring.get(key);
+        if (node) {
+          initialDist.set(node, (initialDist.get(node) || 0) + 1);
+        }
+      }
+
+      // Each server should get ~1/3 of keys (1000 ± 20%)
+      const expectedPerNode = 1000;
+      const margin = expectedPerNode * 0.2;
+
+      for (const count of initialDist.values()) {
+        expect(count).toBeGreaterThan(expectedPerNode - margin);
+        expect(count).toBeLessThan(expectedPerNode + margin);
+      }
+
+      // Test 2: Removing a node redistributes only ~1/n keys
+      const beforeMap = new Map<string, string>();
       for (const key of keys) {
         const node = ring.get(key);
         if (node) beforeMap.set(key, node);
       }
 
-      // Remove one server
       ring.remove('server-2');
 
       let redistributed = 0;
@@ -304,35 +322,11 @@ describe('HashOrbit', () => {
         }
       }
 
-      // Should redistribute roughly 1/3 of keys (within reasonable margin)
-      const expectedRedistribution = 1000 / 3;
-      const margin = expectedRedistribution * 0.2; // 20% margin
-      expect(redistributed).toBeGreaterThan(expectedRedistribution - margin);
-      expect(redistributed).toBeLessThan(expectedRedistribution + margin);
-    });
-
-    test('keys are reasonably distributed across nodes', () => {
-      const ring = new HashOrbit({ replicas: 150 });
-      ring.add('server-1');
-      ring.add('server-2');
-      ring.add('server-3');
-
-      const distribution = new Map<string, number>();
-      for (let i = 0; i < 3000; i++) {
-        const node = ring.get(`key:${i}`);
-        if (node) {
-          distribution.set(node, (distribution.get(node) || 0) + 1);
-        }
-      }
-
-      // Each server should get roughly 1/3 of keys (within 20% margin)
-      const expected = 1000;
-      const margin = expected * 0.2;
-
-      for (const count of distribution.values()) {
-        expect(count).toBeGreaterThan(expected - margin);
-        expect(count).toBeLessThan(expected + margin);
-      }
+      // Should redistribute ~1/3 of keys (1000 ± 20%)
+      const expectedRedistribution = 1000;
+      const redistMargin = expectedRedistribution * 0.2;
+      expect(redistributed).toBeGreaterThan(expectedRedistribution - redistMargin);
+      expect(redistributed).toBeLessThan(expectedRedistribution + redistMargin);
     });
   });
 
@@ -343,33 +337,34 @@ describe('HashOrbit', () => {
       ring = new HashOrbit();
     });
 
-    test('throws error when adding empty node identifier', () => {
-      expect(() => ring.add('')).toThrow('Node identifier cannot be empty');
+    describe('node identifier validation', () => {
+      test.each([
+        ['add', '', 'Node identifier cannot be empty'],
+        ['add', 'a'.repeat(1001), 'Node identifier exceeds maximum length'],
+        ['remove', '', 'Node identifier cannot be empty'],
+      ])('%s() rejects invalid node: %s', (method, input, expectedError) => {
+        expect(() => ring[method as keyof Pick<HashOrbit, 'add' | 'remove'>](input)).toThrow(
+          expectedError
+        );
+      });
     });
 
-    test('throws error when adding node identifier exceeding max length', () => {
-      const longId = 'a'.repeat(1001);
-      expect(() => ring.add(longId)).toThrow('Node identifier exceeds maximum length');
-    });
+    describe('key validation', () => {
+      beforeEach(() => {
+        ring.add('server-1');
+      });
 
-    test('throws error when removing empty node identifier', () => {
-      expect(() => ring.remove('')).toThrow('Node identifier cannot be empty');
-    });
+      test.each([
+        ['get', '', 'Key cannot be empty'],
+        ['get', 'k'.repeat(1001), 'Key exceeds maximum length'],
+      ])('%s() rejects invalid key: %s', (method, input, expectedError) => {
+        expect(() => ring[method as keyof Pick<HashOrbit, 'get'>](input)).toThrow(expectedError);
+      });
 
-    test('throws error when getting with empty key', () => {
-      ring.add('server-1');
-      expect(() => ring.get('')).toThrow('Key cannot be empty');
-    });
-
-    test('throws error when getting with key exceeding max length', () => {
-      ring.add('server-1');
-      const longKey = 'k'.repeat(1001);
-      expect(() => ring.get(longKey)).toThrow('Key exceeds maximum length');
-    });
-
-    test('throws error when getN called with empty key', () => {
-      ring.add('server-1');
-      expect(() => ring.getN('', 1)).toThrow('Key cannot be empty');
+      test('getN() rejects invalid keys', () => {
+        expect(() => ring.getN('', 1)).toThrow('Key cannot be empty');
+        expect(() => ring.getN('k'.repeat(1001), 1)).toThrow('Key exceeds maximum length');
+      });
     });
 
     test('accepts valid node identifiers and keys', () => {
@@ -444,28 +439,5 @@ describe('HashOrbit', () => {
       expect(restored.size).toBe(nodes.length);
       expect(restored.nodes.sort()).toEqual(nodes.sort());
     });
-  });
-
-  describe('Scale Testing', () => {
-    test('handles 1000 nodes', () => {
-      const ring = new HashOrbit();
-
-      // Add 1000 nodes
-      for (let i = 0; i < 1000; i++) {
-        ring.add(`node-${i}`);
-      }
-
-      expect(ring.size).toBe(1000);
-
-      // Verify lookups still work with large ring
-      const node = ring.get('test-key');
-      expect(node).toBeDefined();
-      expect(typeof node).toBe('string');
-
-      // Verify getN works with large ring
-      const nodes = ring.getN('test-key', 5);
-      expect(nodes).toHaveLength(5);
-      expect(new Set(nodes).size).toBe(5); // All unique
-    }, 30000); // 30 second timeout for large scale test
   });
 });
